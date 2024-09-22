@@ -1,19 +1,5 @@
 <!---------------------------------------------------- JavaScript ----------------------------------------------------->
-<script lang="ts">
-	/** Types **/
-	type Account = {
-		startingBalance: number;
-		startingDate: Date;
-		transactions: Transaction[];
-		name: string;
-	};
-
-	type Transaction = {
-		amount: number;
-		date: Date;
-		description: string;
-	};
-
+<script>
 	/** Svelte **/
 	/** Components **/
 	/** Lib **/
@@ -21,10 +7,7 @@
 	/** Stores **/
 	/** Constants **/
 	/** Declares **/
-
 	/** Reactive **/
-	let accounts = $state({});
-
 	/** Init **/
 	/** Functions - Controller **/
 	/** Functions - UX **/
@@ -32,8 +15,10 @@
 </script>
 
 <!------------------------------------------------------- HTML -------------------------------------------------------->
-<div class=""></div>
+<div class="">
+	<slot />
+</div>
 
-<!------------------------------------------------'-'------ CSS --------------------------------------------------------->
+<!------------------------------------------------------- CSS --------------------------------------------------------->
 <style>
 </style>
