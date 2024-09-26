@@ -1,8 +1,11 @@
+<svelte:options runes={true} />
+
 <!---------------------------------------------------- JavaScript ----------------------------------------------------->
 <script lang="ts">
 	/** Svelte **/
 	/** Components **/
-	import { Input, Label } from '$lib/components/ui'
+	import { Input, Label, Button } from '$lib/components/ui';
+	import * as Table from '$lib/components/ui/table';
 
 	/** Lib **/
 
@@ -13,21 +16,15 @@
 		transactions: Transaction[];
 		name: string;
 	};
-
 	type Transaction = {
 		id: string;
 		amount: number;
 		date: Date;
-		description: string;
+		name: string;
 		repeat: {
 			frequency: 'daily' | 'weekly' | 'bi-weekly' | 'monthly' | 'yearly' | 'quarterly';
 			endDate: Date;
 		};
-	};
-
-	type NewTransaction = {
-		transaction: Transaction;
-		accountName: string;
 	};
 
 	/** Exports **/
@@ -40,26 +37,26 @@
 			startingDate: new Date(),
 			transactions: [],
 			name: 'Checking'
-		},
+		} as Account,
 		TRANSACTION: {
-			id: null,
+			id: '',
 			amount: 0,
 			date: new Date(),
-			description: null,
+			name: '',
 			repeat: {
 				frequency: 'monthly',
-				endDate: null,
+				endDate: new Date()
 			}
-		}
+		} as Transaction
 	};
 
 	/** Declares **/
 
 	/** Reactive **/
-	let accounts: { [key: string]: Account } = {
+	let tsx: Transaction = $state(DEFAULTS.TRANSACTION);
+	let accounts: { [key: string]: Account } = $state({
 		Checking: DEFAULTS.ACCOUNT
-	};
-	let tsx: Transaction = DEFAULTS.TRANSACTION;
+	});
 
 	/** Init **/
 
@@ -68,8 +65,11 @@
 		// todo;
 	};
 
-	const addTransaction = ({ transaction, accountName }: NewTransaction) => {
-		accounts[accountName].transactions.push(transaction);
+	const addTransaction = () => {
+		accounts['Checking'].transactions.push({ ...tsx });
+		tsx = DEFAULTS.TRANSACTION;
+		console.log(accounts);
+		accounts['Checking'].transactions.sort((a, b) => a.date.getTime() - b.date.getTime());
 	};
 
 	/** Functions - API **/
@@ -80,41 +80,67 @@
 <!------------------------------------------------------- HTML -------------------------------------------------------->
 <div class="container">
 	<!-- <button onclick={() => {}} aria-label="Add Account"> Add Account </button> -->
-	<div>
-		<button onclick={addTransaction}> Add Transaction </button>
+
+	<div class="flex items-end space-x-2">
+		<!-- <div>
+			<Label for="tsx-name">Account Name</Label>
+			<Input id="tsx-name" type="text" bind:value={accounts['Checking'].name} />
+		</div> -->
+
+		<div>
+			<Label for="tsx-amount">Amount</Label>
+			<Input id="tsx-amount" type="text" bind:value={tsx.amount} />
+		</div>
+
+		<div>
+			<Label for="tsx-name">name</Label>
+			<Input id="tsx-name" type="text" bind:value={tsx.name} />
+		</div>
+
+		<div>
+			<Label for="tsx-date">Date</Label>
+			<Input id="tsx-date" type="text" bind:value={tsx.date} />
+		</div>
+
+		<div>
+			<Label for="tsx-frequency">Frequency</Label>
+			<Input id="tsx-frequency" type="text" bind:value={tsx.repeat.frequency} />
+		</div>
+
+		<div>
+			<Label for="tsx-endDate">End Date</Label>
+			<Input id="tsx-endDate" type="text" bind:value={tsx.repeat.endDate} />
+		</div>
+
+		<div>
+			<Button on:click={addTransaction}>Add Transaction</Button>
+		</div>
 	</div>
-	<div class='flex space-x-2'>
-		<div>
-			<Label for='tsx-name'> Account Name </Label>
-			<Input id='tsx-name' label="name" type="text" bind:value={tsx.name} />
-		</div>
 
+	{#if accounts['Checking'].transactions.length > 0}
 		<div>
-			<Label for='tsx-amount'> Amount </Label>
-			<Input id='tsx-amount' label="amount" type="text" bind:value={tsx.amount} />
+			<Table.Root>
+				<Table.Header>
+					<Table.Row>
+						<Table.Cell>Amount</Table.Cell>
+						<Table.Cell>Name</Table.Cell>
+						<Table.Cell>Frequency</Table.Cell>
+						<Table.Cell>End Date</Table.Cell>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
+					{#each accounts['Checking'].transactions as { amount, name, date, repeat: { ...repeat } }, i}
+						<Table.Row>
+							<Table.Cell>{amount}</Table.Cell>
+							<Table.Cell>{name}</Table.Cell>
+							<Table.Cell>{repeat.frequency}</Table.Cell>
+							<Table.Cell>{repeat.endDate}</Table.Cell>
+						</Table.Row>
+					{/each}
+				</Table.Body>
+			</Table.Root>
 		</div>
-
-		<div>
-			<Label for='tsx-description'> Description </Label>
-			<Input id='tsx-description' label="description" type="text" bind:value={tsx.description} />
-		</div>
-
-
-		<div>
-			<Label for='tsx-date'> Date </Label>
-			<Input id='tsx-date' label="date" type="text" bind:value={tsx.date} />
-		</div>
-
-		<div>
-			<Label for='tsx-frequency'> Frequency </Label>
-			<Input id='tsx-frequency' label="frequency" type="text" bind:value={tsx.repeat.frequency} />
-		</div>
-
-		<div>
-			<Label for='tsx-endDate'> End Date </Label>
-			<Input id='tsx-endDate' label="end date" type="text" bind:value={tsx.repeat.endDate} />
-		</div>
-	</div>
+	{/if}
 </div>
 
 <!------------------------------------------------'-'------ CSS --------------------------------------------------------->
