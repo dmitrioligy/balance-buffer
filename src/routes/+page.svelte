@@ -1,91 +1,166 @@
 <svelte:options runes={true} />
 
-<!---------------------------------------------------- JavaScript ----------------------------------------------------->
 <script lang="ts">
-	/** Svelte **/
 	/** Components **/
 	import { Input, Label, Button } from '$lib/components/ui';
 	import * as Table from '$lib/components/ui/table';
-
-	/** Lib **/
+	import * as Select from '$lib/components/ui/select';
 
 	/** Types **/
 	type Account = {
-		startingBalance: number;
-		startingDate: Date;
-		transactions: Transaction[];
+		startBalance: number;
+		startDate: string;
 		name: string;
 	};
 	type Transaction = {
-		id: string;
+		from: string;
+		to: string;
 		amount: number;
-		date: Date;
+		date: string;
 		name: string;
-		repeat: {
-			frequency: 'daily' | 'weekly' | 'bi-weekly' | 'monthly' | 'yearly' | 'quarterly';
-			endDate: Date;
-		};
 	};
-
-	/** Exports **/
-	/** Stores **/
+	type AccountBalances = { [key: string]: number };
 
 	/** Constants **/
+	const TODAY = new Date().toISOString().split('T')[0];
 	const DEFAULTS = {
-		ACCOUNT: {
-			startingBalance: 0,
-			startingDate: new Date(),
-			transactions: [],
-			name: 'Checking'
-		} as Account,
-		TRANSACTION: {
-			id: '',
-			amount: 0,
-			date: new Date(),
-			name: '',
-			repeat: {
-				frequency: 'monthly',
-				endDate: new Date()
+		ACCOUNTS: [
+			{
+				name: 'Checking',
+				startBalance: 100,
+				startDate: TODAY
+			},
+			{
+				name: 'Savings',
+				startBalance: 500,
+				startDate: TODAY
 			}
+		] as Account[],
+		TRANSACTION: {
+			from: '',
+			to: 'Checking',
+			amount: 200,
+			date: TODAY,
+			name: ''
 		} as Transaction
 	};
 
-	/** Declares **/
-
 	/** Reactive **/
-	let tsx: Transaction = $state(DEFAULTS.TRANSACTION);
-	let accounts: { [key: string]: Account } = $state({
-		Checking: DEFAULTS.ACCOUNT
-	});
+	let tsx: Transaction = $state({ ...DEFAULTS.TRANSACTION });
+	let tsxs: Transaction[] = $state([]);
+	let accounts: Account[] = $state(DEFAULTS.ACCOUNTS);
 
-	/** Init **/
+	/** Derived **/
+	let accountBalancesHistory: AccountBalances[] = $derived(computeBalances(accounts, tsxs));
 
 	/** Functions - Controller **/
-	const addAccount = () => {
-		// todo;
-	};
-
 	const addTransaction = () => {
-		accounts['Checking'].transactions.push({ ...tsx });
-		tsx = DEFAULTS.TRANSACTION;
-		console.log(accounts);
-		accounts['Checking'].transactions.sort((a, b) => a.date.getTime() - b.date.getTime());
+		let { from, to, amount, date, name } = tsx;
+		const fromAccount = accounts.find((acc) => acc.name === from);
+		const toAccount = accounts.find((acc) => acc.name === to);
+
+		amount = Number(amount);
+
+		if (isNaN(amount) || amount === 0) {
+			alert('Amount is required and must be a number');
+			return;
+		}
+		if (!date) {
+			alert('Date is required');
+			return;
+		}
+		if (from === to) {
+			alert('From and To accounts must be different');
+			return;
+		}
+		if (!to && from) {
+			alert('From account requires a "To" account');
+			return;
+		}
+		if (toAccount && date < toAccount.startDate) {
+			alert('Transaction date must be after the "To" account starting date');
+			return;
+		}
+		if (fromAccount && date < fromAccount.startDate) {
+			alert('Transaction date must be after the "From" account starting date');
+			return;
+		}
+		if (fromAccount && toAccount && amount < 0) {
+			alert('Amount must be positive if making a transfer');
+			return;
+		}
+
+		tsxs.push({ from, to, amount, date, name } as Transaction);
+		tsxs.sort((a, b) => a.date.localeCompare(b.date));
+
+		tsx = { ...DEFAULTS.TRANSACTION };
 	};
 
-	/** Functions - API **/
-	/** Functions - UX **/
 	/** Functions - Utility **/
+	const formatDate = (dateString: string): string => {
+		const [year, month, day] = dateString.split('-');
+		return `${month}/${day}/${year}`;
+	};
+
+	function computeBalances(accounts: Account[], transactions: Transaction[]) {
+		const balances: AccountBalances = {};
+
+		for (let i = 0; i < accounts.length; i++) {
+			const { name, startBalance } = accounts[i];
+			balances[name] = startBalance;
+		}
+
+		const accountBalanceHistory: AccountBalances[] = [];
+
+		for (let i = 0; i < transactions.length; i++) {
+			const { from, to, amount } = transactions[i];
+
+			if (from) balances[from] -= amount;
+			if (to) balances[to] += amount;
+
+			accountBalanceHistory.push({ ...balances });
+		}
+
+		return accountBalanceHistory;
+	}
 </script>
 
-<!------------------------------------------------------- HTML -------------------------------------------------------->
 <div class="container">
-	<!-- <button onclick={() => {}} aria-label="Add Account"> Add Account </button> -->
+	<div class="flex space-x-2 items-end">
+		<div>
+			<Label for="tsx-amount">From</Label>
+			<Select.Root
+				selected={{ label: tsx.from, value: tsx.from }}
+				onSelectedChange={(selected) => (tsx.from = selected?.value ?? tsx.from)}
+			>
+				<Select.Trigger class="w-[8rem]">
+					<Select.Value placeholder="Account" />
+				</Select.Trigger>
 
-	<div class="flex items-end space-x-2">
-		<!-- <div>
-			<Label for="tsx-name">Account Name</Label>
-			<Input id="tsx-name" type="text" bind:value={accounts['Checking'].name} />
-		</div> -->
+				<Select.Content>
+					{#each accounts as { name }}
+						<Select.Item value={name}>{name}</Select.Item>
+					{/each}
+				</Select.Content>
+			</Select.Root>
+		</div>
+
+		<div>
+			<Label for="tsx-amount">To</Label>
+			<Select.Root
+				selected={{ label: tsx.to, value: tsx.to }}
+				onSelectedChange={(selected) => (tsx.to = selected?.value ?? tsx.to)}
+			>
+				<Select.Trigger class="w-[8rem]">
+					<Select.Value placeholder="Account" />
+				</Select.Trigger>
+				<Select.Content>
+					{#each accounts as { name }}
+						<Select.Item value={name}>{name}</Select.Item>
+					{/each}
+				</Select.Content>
+			</Select.Root>
+		</div>
 
 		<div>
 			<Label for="tsx-amount">Amount</Label>
@@ -93,23 +168,13 @@
 		</div>
 
 		<div>
-			<Label for="tsx-name">name</Label>
+			<Label for="tsx-name">Name</Label>
 			<Input id="tsx-name" type="text" bind:value={tsx.name} />
 		</div>
 
 		<div>
 			<Label for="tsx-date">Date</Label>
-			<Input id="tsx-date" type="text" bind:value={tsx.date} />
-		</div>
-
-		<div>
-			<Label for="tsx-frequency">Frequency</Label>
-			<Input id="tsx-frequency" type="text" bind:value={tsx.repeat.frequency} />
-		</div>
-
-		<div>
-			<Label for="tsx-endDate">End Date</Label>
-			<Input id="tsx-endDate" type="text" bind:value={tsx.repeat.endDate} />
+			<Input id="tsx-date" type="date" bind:value={tsx.date} />
 		</div>
 
 		<div>
@@ -117,24 +182,45 @@
 		</div>
 	</div>
 
-	{#if accounts['Checking'].transactions.length > 0}
+	<br />
+
+	{#if tsxs.length > 0}
 		<div>
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
+						<!-- Account balance columns -->
+						{#each accounts as account}
+							<Table.Cell>{account.name}</Table.Cell>
+						{/each}
+						<!-- Divider -->
+						<Table.Cell class="divider"></Table.Cell>
+						<!-- Transaction columns -->
+						<Table.Cell>From</Table.Cell>
+						<Table.Cell>To</Table.Cell>
 						<Table.Cell>Amount</Table.Cell>
 						<Table.Cell>Name</Table.Cell>
-						<Table.Cell>Frequency</Table.Cell>
-						<Table.Cell>End Date</Table.Cell>
+						<Table.Cell>Date</Table.Cell>
 					</Table.Row>
 				</Table.Header>
+
 				<Table.Body>
-					{#each accounts['Checking'].transactions as { amount, name, date, repeat: { ...repeat } }, i}
+					{#each tsxs as tx, i}
 						<Table.Row>
-							<Table.Cell>{amount}</Table.Cell>
-							<Table.Cell>{name}</Table.Cell>
-							<Table.Cell>{repeat.frequency}</Table.Cell>
-							<Table.Cell>{repeat.endDate}</Table.Cell>
+							<!-- Account balances -->
+							{#each accounts as { name }}
+								<Table.Cell>
+									{accountBalancesHistory[i][name]}
+								</Table.Cell>
+							{/each}
+							<!-- Divider -->
+							<Table.Cell class="divider"></Table.Cell>
+							<!-- Transaction data -->
+							<Table.Cell>{tx.from}</Table.Cell>
+							<Table.Cell>{tx.to}</Table.Cell>
+							<Table.Cell>{tx.amount}</Table.Cell>
+							<Table.Cell>{tx.name}</Table.Cell>
+							<Table.Cell>{formatDate(tx.date)}</Table.Cell>
 						</Table.Row>
 					{/each}
 				</Table.Body>
@@ -143,6 +229,8 @@
 	{/if}
 </div>
 
-<!------------------------------------------------'-'------ CSS --------------------------------------------------------->
 <style>
+	.divider {
+		border-left: 2px solid #ccc;
+	}
 </style>
